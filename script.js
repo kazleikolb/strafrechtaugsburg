@@ -25,6 +25,82 @@
     });
   });
 
+  // --- Cookie-/Datenschutz-Hinweis ---------------------------------------
+  // Die Seite setzt aktuell keine Cookies und lädt keine optionalen Dienste.
+  // Die Auswahl wird nur im localStorage gespeichert (kein Cookie).
+  // Künftige optionale Dienste (z. B. Statistik) dürfen erst geladen werden,
+  // wenn KanzleiConsent.allowsOptional() true liefert; auf Änderungen
+  // reagiert das Ereignis "kanzlei:consent".
+  var CONSENT_KEY = 'kanzlei-consent-v1';
+  var banner = null;
+  var lastOpener = null;
+
+  function readConsent() {
+    try {
+      var rec = JSON.parse(localStorage.getItem(CONSENT_KEY));
+      return rec && rec.v === 1 ? rec : null;
+    } catch (e) { return null; }
+  }
+
+  function saveConsent(choice) {
+    var rec = { v: 1, choice: choice, ts: new Date().toISOString() };
+    try { localStorage.setItem(CONSENT_KEY, JSON.stringify(rec)); } catch (e) { /* z. B. privater Modus */ }
+    window.dispatchEvent(new CustomEvent('kanzlei:consent', { detail: rec }));
+    return rec;
+  }
+
+  function closeBanner() {
+    if (banner && banner.parentNode) banner.parentNode.removeChild(banner);
+    banner = null;
+    if (lastOpener && document.contains(lastOpener)) lastOpener.focus();
+    lastOpener = null;
+  }
+
+  function showBanner(userInitiated) {
+    if (banner) return;
+    banner = document.createElement('div');
+    banner.className = 'consent-banner';
+    banner.setAttribute('role', 'dialog');
+    banner.setAttribute('aria-labelledby', 'consent-title');
+    banner.setAttribute('aria-describedby', 'consent-text');
+    banner.innerHTML =
+      '<h2 id="consent-title">Datenschutz und Cookies</h2>' +
+      '<p id="consent-text">Diese Website setzt keine Tracking- oder Marketing-Cookies. ' +
+      'Optionale Dienste würden nur mit Ihrer Zustimmung geladen; aktuell sind keine eingebunden. ' +
+      'Ihre Auswahl wird in Ihrem Browser gespeichert und kann über „Cookie-Einstellungen“ in der Fußzeile geändert werden.</p>' +
+      '<p><a href="/datenschutz/">Datenschutzerklärung</a> · <a href="/impressum/">Impressum</a></p>' +
+      '<div class="consent-actions">' +
+      '<button type="button" class="btn btn-secondary" data-choice="necessary">Nur notwendige</button>' +
+      '<button type="button" class="btn btn-primary" data-choice="all">Alle akzeptieren</button>' +
+      '</div>';
+    banner.addEventListener('click', function (e) {
+      var btn = e.target.closest('[data-choice]');
+      if (!btn) return;
+      saveConsent(btn.getAttribute('data-choice'));
+      closeBanner();
+    });
+    document.body.appendChild(banner);
+    if (userInitiated) {
+      var first = banner.querySelector('button');
+      if (first) first.focus();
+    }
+  }
+
+  window.KanzleiConsent = {
+    get: readConsent,
+    allowsOptional: function () { var c = readConsent(); return !!c && c.choice === 'all'; },
+    open: function () { showBanner(true); }
+  };
+
+  document.querySelectorAll('[data-consent-open]').forEach(function (el) {
+    el.addEventListener('click', function () {
+      lastOpener = el;
+      showBanner(true);
+    });
+  });
+
+  if (!readConsent()) showBanner(false);
+
   // --- Kontaktformular (zweistufig) --------------------------------------
   var form = document.getElementById('wizardForm');
   if (!form) return;

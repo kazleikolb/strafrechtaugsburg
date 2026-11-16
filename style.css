@@ -803,3 +803,39 @@ h1, h2, h3 { overflow-wrap: break-word; hyphens: auto; }
 
 /* Fußzeile nicht unter der festen Kontaktleiste verstecken */
 footer { padding-bottom: 100px; }
+
+/* Cookie-/Datenschutz-Hinweis */
+.consent-banner {
+  position: fixed;
+  left: 16px;
+  bottom: 16px;
+  z-index: 1200;
+  width: min(450px, calc(100% - 32px));
+  padding: 20px;
+  border-radius: 22px;
+  border: 1px solid rgba(255,255,255,0.14);
+  background: rgba(14,11,11,0.98);
+  box-shadow: var(--shadow);
+  font-family: Arial, Helvetica, sans-serif;
+  color: var(--muted);
+}
+.consent-banner h2 { margin: 0 0 8px; font-size: 1.1rem; color: #fff; }
+.consent-banner p { margin: 0 0 10px; font-size: 0.92rem; line-height: 1.55; }
+.consent-banner a { color: #f0dfbb; text-decoration: underline; text-underline-offset: 3px; }
+.consent-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
+.consent-actions .btn { flex: 1 1 150px; min-height: 46px; }
+
+.linklike {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.footer-grid .linklike:hover { color: #fff; text-decoration: underline; }
+
+@media (max-width: 760px) {
+  .consent-banner { left: 8px; right: 8px; bottom: 8px; width: auto; padding: 16px; }
+}

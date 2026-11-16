@@ -26,14 +26,68 @@
   });
 
   // --- Cookie-/Datenschutz-Hinweis ---------------------------------------
-  // Die Seite setzt aktuell keine Cookies und lädt keine optionalen Dienste.
+  // Ohne Zustimmung setzt die Seite keine Cookies und lädt nichts von Dritten.
   // Die Auswahl wird nur im localStorage gespeichert (kein Cookie).
-  // Künftige optionale Dienste (z. B. Statistik) dürfen erst geladen werden,
-  // wenn KanzleiConsent.allowsOptional() true liefert; auf Änderungen
-  // reagiert das Ereignis "kanzlei:consent".
+  // Nur nach "Alle akzeptieren" wird das Google-Ads-Tag (Conversion-Messung)
+  // geladen, ohne Personalisierung. Bei "Nur notwendige" wird es nicht
+  // geladen bzw. die Einwilligung widerrufen und Google-Cookies entfernt.
+  // Auf Änderungen reagiert das Ereignis "kanzlei:consent".
   var CONSENT_KEY = 'kanzlei-consent-v1';
+  var ADS_ID = 'AW-17787534772';
+  var adsLoaded = false;
   var banner = null;
   var lastOpener = null;
+
+  function loadGoogleAds() {
+    if (adsLoaded) return;
+    adsLoaded = true;
+    window.dataLayer = window.dataLayer || [];
+    window.gtag = function () { window.dataLayer.push(arguments); };
+    gtag('consent', 'default', {
+      ad_storage: 'denied', ad_user_data: 'denied',
+      ad_personalization: 'denied', analytics_storage: 'denied'
+    });
+    // Einwilligung nur für die Messung; keine personalisierte Werbung
+    gtag('consent', 'update', {
+      ad_storage: 'granted', ad_user_data: 'granted', ad_personalization: 'denied'
+    });
+    gtag('js', new Date());
+    gtag('config', ADS_ID, { allow_ad_personalization_signals: false });
+    var s = document.createElement('script');
+    s.async = true;
+    s.src = 'https://www.googletagmanager.com/gtag/js?id=' + ADS_ID;
+    document.head.appendChild(s);
+  }
+
+  function revokeGoogleAds() {
+    if (typeof window.gtag === 'function') {
+      gtag('consent', 'update', {
+        ad_storage: 'denied', ad_user_data: 'denied',
+        ad_personalization: 'denied', analytics_storage: 'denied'
+      });
+    }
+    // Von Google gesetzte Cookies (_gcl_*, _gac_*) entfernen
+    var host = location.hostname;
+    var domains = [host, '.' + host];
+    var parts = host.split('.');
+    if (parts.length > 2) domains.push('.' + parts.slice(-2).join('.'));
+    document.cookie.split(';').forEach(function (c) {
+      var name = c.split('=')[0].trim();
+      if (/^(_gcl_|_gac_|_ga)/.test(name)) {
+        domains.forEach(function (d) {
+          document.cookie = name + '=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; domain=' + d;
+        });
+        document.cookie = name + '=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/';
+      }
+    });
+  }
+
+  function applyConsent(rec) {
+    if (rec && rec.choice === 'all') loadGoogleAds();
+    else if (adsLoaded) revokeGoogleAds();
+  }
+
+  window.addEventListener('kanzlei:consent', function (e) { applyConsent(e.detail); });
 
   function readConsent() {
     try {
@@ -65,9 +119,11 @@
     banner.setAttribute('aria-describedby', 'consent-text');
     banner.innerHTML =
       '<h2 id="consent-title">Datenschutz und Cookies</h2>' +
-      '<p id="consent-text">Diese Website setzt keine Tracking- oder Marketing-Cookies. ' +
-      'Optionale Dienste würden nur mit Ihrer Zustimmung geladen; aktuell sind keine eingebunden. ' +
-      'Ihre Auswahl wird in Ihrem Browser gespeichert und kann über „Cookie-Einstellungen“ in der Fußzeile geändert werden.</p>' +
+      '<p id="consent-text">Ohne Ihre Zustimmung setzt diese Website keine Cookies. ' +
+      'Mit „Alle akzeptieren“ erlauben Sie Google Ads, den Erfolg von Anzeigen zu messen (Cookies von Google, ' +
+      'Datenübermittlung in die USA möglich, keine personalisierte Werbung). ' +
+      'Mit „Nur notwendige“ wird nichts von Google geladen. ' +
+      'Ihre Auswahl können Sie jederzeit über „Cookie-Einstellungen“ in der Fußzeile ändern.</p>' +
       '<p><a href="/datenschutz/">Datenschutzerklärung</a> · <a href="/impressum/">Impressum</a></p>' +
       '<div class="consent-actions">' +
       '<button type="button" class="btn btn-secondary" data-choice="necessary">Nur notwendige</button>' +
@@ -99,7 +155,8 @@
     });
   });
 
-  if (!readConsent()) showBanner(false);
+  if (readConsent()) applyConsent(readConsent());
+  else showBanner(false);
 
   // --- Kontaktformular (zweistufig) --------------------------------------
   var form = document.getElementById('wizardForm');

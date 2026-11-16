@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://strafrechtaugsburg.de/sitemap.xml
